@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
             }
         } else {
             state.selectedNode = null;
-            state.mode = "NORMAL";
+            state.node = "NORMAL";
             state.highlightedEdges = [];
             state.highlightedNodes = [];
             render();
@@ -69,12 +69,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
             state.edges = []
             state.selectedNode = null
             state.path = []
-            state.mode = "NORMAL"
+            state.node = "NORMAL"
             saveData()
             render()
         }
     })
     render()
+    updateUI()
 })
 
 // save image
@@ -164,14 +165,14 @@ function render() {
 
   // render edges
   state.edges.forEach((edge) => {
-    const nodeA = state.nodes.find((n) => n.id === edge.from);
-    const nodeB = state.nodes.find((n) => n.id === edge.to);
+    const nodeA = state.nodes.find((n) => String(n.id) === String(edge.from));
+    const nodeB = state.nodes.find((n) => String(n.id) === String(edge.to));
     if (!nodeA || !nodeB) return;
 
     const isEdgeHighlighted = state.highlightedEdges.includes(String(edge.id));
-    const lineClass = isEdgeHighlighted
-      ? "edge-line highlighted-edge"
-      : "edge-line";
+    // const lineClass = isEdgeHighlighted
+    //   ? "edge-line highlighted-edge"
+    //   : "edge-line";
 
     const midX = (nodeA.x + nodeB.x) / 2;
     const midY = (nodeA.y + nodeB.y) / 2;
@@ -181,21 +182,26 @@ function render() {
     line.setAttribute("y1", nodeA.y);
     line.setAttribute("x2", nodeB.x);
     line.setAttribute("y2", nodeB.y);
-    line.setAttribute("class", lineClass);
+    // line.setAttribute("class", lineClass);
 
-    if (isEdgeHighlighted) {
-      line.style.stroke = "#007bff";
-      line.style.strokeWidth = "4px";
-    } else {
-      line.style.stroke = "#111";
-      line.style.strokeWidth = "2px";
-    }
+    // if (isEdgeHighlighted) {
+    //   line.style.stroke = "#007bff";
+    //   line.style.strokeWidth = "4px";
+    // } else {
+    //   line.style.stroke = "#111";
+    //   line.style.strokeWidth = "2px";
+    // }
+    line.setAttribute("stroke", isEdgeHighlighted ? "#007bff" : "#333333");
+    line.setAttribute("stroke-width", isEdgeHighlighted ? "4" : "2");
 
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", midX);
     text.setAttribute("y", midY - 5);
-    text.setAttribute("class", "edge-text");
-    text.textContent = edge.distance;
+    text.setAttribute("text-anchor", "middle");
+    text.style.fill = "#0033ff";
+    text.style.fontSize = "12px";
+    text.style.fontWeight = "bold";
+    text.textContent = String(edge.distance);
 
     layerEdges.appendChild(line);
     layerEdges.appendChild(text);
@@ -256,7 +262,7 @@ function updateUI() {
   btnPath.disabled = !state.selectedNode;
   statusLabel.disabled = !state.selectedNode || state.nodes.length < 2;
 
-  if (state.mode === "CONNECTING" || state.mode === "PATHFINDING") {
+  if (state.node === "CONNECTING" || state.node === "PATHFINDING") {
     statusLabel.classList.remove("status-hidden");
   } else {
     statusLabel.classList.add("status-hidden");
@@ -278,7 +284,9 @@ function initNodeEvents(svgElement) {
     const pt = svgElement.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
-    const ctm = document.getElementById("workspace").getScreenCTM();
+    const workspace = document.getElementById("workspace");
+    const ctm = workspace.getScreenCTM();
+    if (!ctm) return;
     const cursorPt = pt.matrixTransform(ctm.inverse());
 
     pendingCoords = { x: cursorPt.x, y: cursorPt.y };
@@ -359,14 +367,22 @@ function initEdgeEvents() {
   let targetNodeIdTemp = null;
 
   btnConnect.addEventListener("click", () => {
-    state.mode = "CONNECTING";
+    state.node = "CONNECTING";
     render();
   });
   document.getElementById("canvas").addEventListener("click", (e) => {
     const g = e.target.closest("g.node");
-    if (state.mode === "CONNECTING" && g) {
+    if (state.node === "CONNECTING" && g) {
       const targetId = g.getAttribute("data-id");
       if (targetId !== state.selectedNode) {
+        const existingEdge = state.edges.find(
+            e => (e.from === state.selectedNode && e.to === targetId) ||
+                 (e.from === targetId && e.to === state.selectedNode)
+        );
+        if (existingEdge) {
+            alert("There's already a connection between these nodes");
+            return;
+        }
         targetNodeIdTemp = targetId;
         popupEdge.style.left = e.clientX + 10 + "px";
         popupEdge.style.top = e.clientY + 10 + "px";
@@ -378,7 +394,8 @@ function initEdgeEvents() {
   });
   const finalizeEdge = () => {
     const dist = parseFloat(inputDistance.value);
-    if (!isNaN(dist) && targetNodeIdTemp) {
+    console.log("Create edge:", { from: state.selectedNode, to: targetNodeIdTemp, dist });
+    if (!isNaN(dist) && dist > 0 && targetNodeIdTemp && state.selectedNode) {
       state.edges.push({
         id: "e_" + Date.now(),
         from: state.selectedNode,
@@ -386,10 +403,13 @@ function initEdgeEvents() {
         distance: dist,
       });
       saveData();
+    } else {
+        console.warn("Failed to make edge");
     }
     popupEdge.classList.add("hidden");
-    state.mode = "NORMAL";
+    state.node = "NORMAL";
     targetNodeIdTemp = null;
+    state.selectedNode = null;
     render();
   };
   btnCreateEdge.addEventListener("click", finalizeEdge);
@@ -403,17 +423,17 @@ function initPathfindingEvents() {
   const btnPath = document.getElementById("btnPath");
 
   btnPath.addEventListener("click", () => {
-    state.mode = "PATHFINDING";
+    state.node = "PATHFINDING";
     render();
   });
 
   document.getElementById("canvas").addEventListener("click", (e) => {
     const g = e.target.closest("g.node");
-    if (state.mode === "PATHFINDING" && g) {
+    if (state.node === "PATHFINDING" && g) {
       const targetId = g.getAttribute("data-id");
       if (targetId !== state.selectedNode) {
         findShortestPath(state.selectedNode, targetId);
-        state.mode = "NORMAL";
+        state.node = "NORMAL";
         render();
       }
     }
@@ -434,11 +454,16 @@ function findShortestPath(startId, endId) {
   // build adjacency list
   state.nodes.forEach((n) => {
     const nodeIdStr = String(n.id);
-    distances[n.id] = Infinity;
-    adj[n.id] = [];
+    distances[nodeIdStr] = Infinity;
+    adj[nodeIdStr] = [];
     unvisited.add(nodeIdStr);
   });
-  distances[startId] = 0;
+  if (distances[start] !== undefined){
+      distances[start] = 0;
+  } else {
+    console.error("Start node not found");
+    return;
+  }
 
   state.edges.forEach((e) => {
     const fromStr = String(e.from);
@@ -446,12 +471,12 @@ function findShortestPath(startId, endId) {
     if (adj[fromStr] && adj[toStr]) {
       adj[fromStr].push({
         node: toStr,
-        weight: e.distance,
+        weight: Number(e.distance),
         edgeId: String(e.id),
       });
       adj[toStr].push({
         node: fromStr,
-        weight: e.distance,
+        weight: Number(e.distance),
         edgeId: String(e.id),
       });
     }
@@ -466,20 +491,25 @@ function findShortestPath(startId, endId) {
       }
     });
     if (!currNode || distances[currNode] === Infinity) break;
-    if (currNode === endId) break;
-
+    if (currNode === end) break;
     unvisited.delete(currNode);
-    adj[currNode].forEach((neighbor) => {
-      const alt = distances[currNode] + neighbor.weight;
-      if (alt < distances[neighbor.node]) {
-        distances[neighbor.node] = alt;
-        prev[neighbor.node] = { id: currNode, edgeId: neighbor.edgeId };
-      }
-    });
+    if (adj[currNode]){
+        adj[currNode].forEach((neighbor) => {
+          const alt = distances[currNode] + neighbor.weight;
+          if (alt < distances[neighbor.node]) {
+            distances[neighbor.node] = alt;
+            prev[neighbor.node] = { id: currNode, edgeId: neighbor.edgeId };
+          }
+        });
+    }
   }
   let curr = endId;
-  if (prev[curr] || curr === startId) {
-    while (curr) {
+  if (distances[end] === Infinity){
+    alert("No path found between these nodes")
+    return;
+  }
+  if (prev[curr] !== undefined || start === end) {
+    while (curr !== undefined && curr !== null) {
       state.highlightedNodes.push(curr);
       if (prev[curr]) {
         state.highlightedEdges.push(prev[curr].edgeId); // save edge id
@@ -489,4 +519,8 @@ function findShortestPath(startId, endId) {
       }
     }
   }
+  console.log("Path found", {
+    nodes: state.highlightedNodes,
+    edges: state.highlightedEdges
+  });
 }

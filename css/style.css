@@ -47,7 +47,7 @@ html {
 }
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 50%;
+  opacity: 25%;
 }
 .icon {
   width: 1.1rem;

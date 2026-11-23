@@ -12,20 +12,36 @@
             <button id="btnSave" class="btnBar">
                 <img src="assets/download.svg" alt="download" class="icon">Save Image
             </button>
-            <button id="btnSave" class="btnBar">
+            <button id="btnPath" class="btnBar">
                 <img src="assets/find_path.svg" alt="find path" class="icon">Find Path
             </button>
-            <button id="btnSave" class="btnBar">
+            <button id="btnConnect" class="btnBar">
                 <img src="assets/connect.svg" alt="connect" class="icon">Connect
             </button>
-            <button id="btnSave" class="btnBar">
+            <button id="btnDelete" class="btnBar">
                 <img src="assets/delete.svg" alt="delete" class="icon">Delete
             </button>
-            <button id="btnSave" class="btnBar">
+            <button id="btnClear" class="btnBar">
                 <img src="assets/empty.svg" alt="clear" class="icon">Clear
             </button>
         </div>
         <div id="statusLabel" class="status-hidden">Choose target node</div>
+
+        <div id="popupNode" class="popup hidden">
+        <h4>Create node</h4>
+        <div class="inputGroup">
+          <input type="text" id="inputNodeName" placeholder="Name" />
+          <button id="btnCreateNode">Create</button>
+        </div>
+      </div>
+
+      <div id="popupEdge" class="popup hidden">
+        <h4>Distance</h4>
+        <div class="inputGroup">
+          <input type="text" id="inputEdgeDistance" placeholder="Distance" />
+          <button id="btnCreateEdge">Connect</button>
+        </div>
+      </div>
 
         <svg id="canvas" width="100%" height="100%">
         <defs>
